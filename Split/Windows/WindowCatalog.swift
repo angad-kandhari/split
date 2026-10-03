@@ -30,7 +30,7 @@ enum WindowCatalog {
         return result
     }
 
-    private static func windows(ofAppWithPID pid: pid_t) -> [CGWindowID: AXWindow] {
+    static func windows(ofAppWithPID pid: pid_t) -> [CGWindowID: AXWindow] {
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, AX.messagingTimeout)
         let elements: [AXUIElement] = app.value(kAXWindowsAttribute) ?? []

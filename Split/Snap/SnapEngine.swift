@@ -53,11 +53,17 @@ final class SnapEngine: @unchecked Sendable {
     private var pendingSizeRestore: (window: AXWindow, size: CGSize)?
     /// Raising a group activates its apps in turn, which would otherwise look like the user focusing them.
     private var ignoreFocusUntil: CFAbsoluteTime = 0
+    private let stateFile: JSONFile<SavedState> = {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let folder = support.appendingPathComponent(Bundle.main.bundleIdentifier ?? "Split")
+        return JSONFile(url: folder.appendingPathComponent("state.json"))
+    }()
 
     @MainActor
     func start() {
         AX.queue.async {
             self.hub.onEvent = { [weak self] event in self?.handle(event) }
+            self.restoreState()
         }
         NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { [weak self] _ in
             AX.queue.async { self?.mouseUp() }
@@ -268,7 +274,56 @@ final class SnapEngine: @unchecked Sendable {
             GroupSummary(id: group.id, layout: group.layout, members: group.members.mapValues(\.window.pid))
         }
         DebugLog.write("groups \(debugDescription())")
+        saveState()
         DispatchQueue.main.async { self.onGroupsChanged?(summaries) }
+    }
+
+    // MARK: Persistence
+
+    private func saveState() {
+        let saved = groups.map { group in
+            SavedGroup(displayUUID: group.displayUUID, visibleFrame: group.visibleFrame, layout: group.layout,
+                       members: group.members.map { zone, member in
+                           SavedMember(zone: zone, windowID: member.id, pid: member.window.pid,
+                                       bundleID: NSRunningApplication(processIdentifier: member.window.pid)?.bundleIdentifier,
+                                       frame: member.frame, preSnapFrame: member.preSnapFrame)
+                       })
+        }
+        do {
+            try stateFile.save(SavedState(lastLayouts: lastLayouts, groups: saved))
+        } catch {
+            DebugLog.write("could not save state: \(error)")
+        }
+    }
+
+    /// Re-links saved groups to windows that are still open and still where Split left them.
+    private func restoreState() {
+        guard let state = stateFile.load() else { return }
+        lastLayouts = state.lastLayouts.filter { $0.value.tree.isWellFormed }
+        for saved in state.groups where saved.layout.tree.isWellFormed {
+            var group = Group(displayUUID: saved.displayUUID, visibleFrame: saved.visibleFrame, layout: saved.layout)
+            for member in saved.members {
+                guard let window = Self.findWindow(for: member), let id = window.windowID,
+                      let frame = window.frame, Self.matches(frame, member.frame) else { continue }
+                group.members[member.zone] = Member(window: window, id: id, frame: frame, preSnapFrame: member.preSnapFrame)
+                hub.watch(window)
+            }
+            if !group.members.isEmpty { groups.append(group) }
+        }
+        groupsChanged()
+    }
+
+    private static func findWindow(for member: SavedMember) -> AXWindow? {
+        guard let bundleID = member.bundleID else { return nil }
+        let pids = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).map(\.processIdentifier)
+        let windows = pids.flatMap { Array(WindowCatalog.windows(ofAppWithPID: $0)) }
+        // A window keeps its ID for as long as it stays open.
+        if pids.contains(member.pid), let exact = windows.first(where: { $0.key == member.windowID }) {
+            return exact.value
+        }
+        // The app was relaunched: accept a window in the same place only if there is exactly one.
+        let inPlace = windows.filter { $0.value.frame.map { matches($0, member.frame) } ?? false }
+        return inPlace.count == 1 ? inPlace[0].value : nil
     }
 
     // MARK: Events
@@ -334,6 +389,7 @@ final class SnapEngine: @unchecked Sendable {
         } else if let frame = groups[index].members[zone]?.window.frame {
             groups[index].members[zone]?.frame = frame
         }
+        saveState()
     }
 
     // MARK: Linked resize
