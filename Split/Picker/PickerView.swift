@@ -24,6 +24,18 @@ struct PickerView: View {
                 }
             }
 
+            if !model.groups.isEmpty {
+                Divider()
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Snap Groups")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(model.groups) { group in
+                        GroupRow(group: group) { model.onRestoreGroup(group.id) }
+                    }
+                }
+            }
+
             HStack {
                 Text(model.armedLayout == nil ? "Click a zone, or press a number" : "Press a zone number")
                     .font(.caption)
@@ -98,5 +110,56 @@ struct LayoutThumbnail: View {
         return CGRect(x: unit.minX * Self.size.width, y: unit.minY * Self.size.height,
                       width: unit.width * Self.size.width, height: unit.height * Self.size.height)
             .insetBy(dx: gap, dy: gap)
+    }
+}
+
+/// One Snap Group in the picker: a small map of which zones are filled, and the apps in them.
+private struct GroupRow: View {
+    let group: GroupSummary
+    let restore: () -> Void
+
+    @State private var hovering = false
+
+    private static let mapSize = CGSize(width: 40, height: 25)
+
+    var body: some View {
+        Button(action: restore) {
+            HStack(spacing: 10) {
+                ZStack(alignment: .topLeading) {
+                    ForEach(group.layout.tree.zones(), id: \.index) { zone in
+                        let filled = group.members[zone.index] != nil
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(filled ? AnyShapeStyle(Theme.teal) : AnyShapeStyle(.primary.opacity(0.2)))
+                            .frame(width: zone.rect.width * Self.mapSize.width - 2,
+                                   height: zone.rect.height * Self.mapSize.height - 2)
+                            .offset(x: zone.rect.minX * Self.mapSize.width + 1,
+                                    y: zone.rect.minY * Self.mapSize.height + 1)
+                    }
+                }
+                .frame(width: Self.mapSize.width, height: Self.mapSize.height, alignment: .topLeading)
+
+                ForEach(group.members.sorted { $0.key < $1.key }, id: \.key) { _, pid in
+                    if let icon = NSRunningApplication(processIdentifier: pid)?.icon {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    }
+                }
+                Text(group.layout.name)
+                    .font(.callout)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 5)
+            .padding(.horizontal, 8)
+            .frame(minHeight: 32)
+            .background {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(hovering ? AnyShapeStyle(Theme.indigo.opacity(0.18)) : AnyShapeStyle(.clear))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityLabel("Restore \(group.layout.name) group")
     }
 }

@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.showPermissions()
         }
 
+        engine.start()
         Hotkeys.register(engine: engine)
         KeyboardShortcuts.onKeyDown(for: .openPicker) { [weak self] in
             self?.picker.toggle()

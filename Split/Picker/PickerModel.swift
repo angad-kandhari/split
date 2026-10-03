@@ -6,9 +6,11 @@ final class PickerModel: ObservableObject {
     @Published var layouts: [Layout] = Layout.builtIns
     /// Set once a layout has been chosen from the keyboard; the next digit picks one of its zones.
     @Published var armedLayout: Int?
+    @Published var groups: [GroupSummary] = []
 
     var onPick: (Layout, Int) -> Void = { _, _ in }
     var onDismiss: () -> Void = {}
+    var onRestoreGroup: (UUID) -> Void = { _ in }
     var onShowPermissions: () -> Void = {}
 
     func reset() {

@@ -23,6 +23,14 @@ final class PickerController {
         self.statusItem = statusItem
         model.onPick = { [weak self] layout, zone in self?.pick(layout, zone: zone) }
         model.onDismiss = { [weak self] in self?.close() }
+        model.onRestoreGroup = { [weak self] id in
+            self?.close()
+            self?.engine.restoreGroup(id)
+        }
+        engine.onGroupsChanged = { [weak self] groups in
+            self?.model.groups = groups
+            self?.resizeToFit()
+        }
     }
 
     func toggle() {
@@ -68,6 +76,11 @@ final class PickerController {
         engine.snapFocusedWindow(to: layout, zone: zone, inAppWithPID: targetPID) { [assist] result in
             assist.begin(after: result)
         }
+    }
+
+    private func resizeToFit() {
+        guard isOpen, let panel, let size = panel.contentView?.fittingSize else { return }
+        panel.setFrame(NSRect(origin: origin(for: size), size: size), display: true)
     }
 
     /// Hangs the panel below the menu bar icon, kept within the screen.

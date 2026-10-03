@@ -22,7 +22,7 @@ enum DebugLog {
 #if DEBUG
 /// Lets test scripts drive the app without synthesising key presses:
 /// post a distributed notification whose object is "status", "move:<direction>[:<pid>]",
-/// "snap:<layout id>:<zone>[:<pid>]", "picker:open[:<pid>]", "picker:close", "picker:digit:<n>", "assist:select:<window id>" or "assist:dismiss". With a pid the command acts on that app's focused window, so tests
+/// "snap:<layout id>:<zone>[:<pid>]", "picker:open[:<pid>]", "picker:close", "picker:digit:<n>", "assist:select:<window id>", "assist:dismiss", "groups" or "restore:<index>". With a pid the command acts on that app's focused window, so tests
 /// do not touch whatever the person at the keyboard is using.
 @MainActor
 enum DebugCommands {
@@ -54,6 +54,12 @@ enum DebugCommands {
             case "close": picker.close()
             case "digit": if parts.count > 2, let digit = Int(parts[2]) { _ = picker.model.handleDigit(digit) }
             default: break
+            }
+        case "groups":
+            AX.queue.async { DebugLog.write("groups \(engine.debugDescription())") }
+        case "restore":
+            if parts.count > 1, let index = Int(parts[1]), picker.model.groups.indices.contains(index) {
+                engine.restoreGroup(picker.model.groups[index].id)
             }
         case "assist":
             switch parts.dropFirst().first {

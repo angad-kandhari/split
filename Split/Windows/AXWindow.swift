@@ -91,6 +91,10 @@ struct AXWindow {
         return frame
     }
 
+    func setSize(_ size: CGSize) {
+        set(size: size)
+    }
+
     private func set(origin: CGPoint) {
         var origin = origin
         guard let value = AXValueCreate(.cgPoint, &origin) else { return }
