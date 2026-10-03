@@ -29,7 +29,7 @@ macOS tiling stops at halves and quarters. Split is a menu bar app that brings t
 ## Roadmap
 
 - [x] Layout model and geometry (`SplitCore`)
-- [ ] Snap a window to a zone; arrow-key movement
+- [x] Snap a window to a zone; arrow-key movement
 - [ ] Layout picker in the menu bar
 - [ ] Snap Assist
 - [ ] Snap Groups with linked resize

@@ -106,3 +106,14 @@ public enum ZoneGeometry {
         min(a1, b1) - max(a0, b0)
     }
 }
+
+extension Direction {
+    public var opposite: Direction {
+        switch self {
+        case .left: return .right
+        case .right: return .left
+        case .up: return .down
+        case .down: return .up
+        }
+    }
+}

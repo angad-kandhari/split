@@ -6,6 +6,7 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var permissionsWindow: NSWindow?
+    private let engine = SnapEngine()
 
     static func main() {
         let app = NSApplication.shared
@@ -20,6 +21,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1",
                                            accessibilityDescription: "Split")
         statusItem.menu = makeMenu()
+
+        Hotkeys.register(engine: engine)
+        #if DEBUG
+        DebugCommands.listen(engine: engine)
+        #endif
 
         if !Permissions.accessibility {
             showPermissions()
