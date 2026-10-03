@@ -8,8 +8,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var picker: PickerController!
     private var assist: SnapAssistController!
-    private var permissionsWindow: NSWindow?
+    private var settingsWindow: NSWindow?
     private let engine = SnapEngine()
+    private let library = LayoutLibrary()
+    private let settings = AppSettings()
+    private let navigation = SettingsNavigation()
 
     static func main() {
         let app = NSApplication.shared
@@ -26,23 +29,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.action = #selector(statusItemClicked)
 
         assist = SnapAssistController(engine: engine)
-        picker = PickerController(engine: engine, assist: assist, statusItem: statusItem)
-        picker.model.onShowPermissions = { [weak self] in
+        picker = PickerController(engine: engine, assist: assist, library: library, statusItem: statusItem)
+        picker.model.onShowSettings = { [weak self] in
             self?.picker.close()
-            self?.showPermissions()
+            self?.showSettings(.general)
         }
 
+        settings.onIgnoredChanged = { [engine] ids in engine.setIgnoredBundleIDs(ids) }
+        engine.setIgnoredBundleIDs(Set(settings.ignoredBundleIDs))
         engine.start()
         Hotkeys.register(engine: engine)
         KeyboardShortcuts.onKeyDown(for: .openPicker) { [weak self] in
             self?.picker.toggle()
         }
         #if DEBUG
-        DebugCommands.listen(engine: engine, picker: picker, assist: assist)
+        DebugCommands.listen(engine: engine, picker: picker, assist: assist) { [weak self] tab in
+            self?.showSettings(tab)
+        }
         #endif
 
         if !Permissions.accessibility {
-            showPermissions()
+            showSettings(.permissions)
         }
     }
 
@@ -50,16 +57,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         picker.toggle()
     }
 
-    private func showPermissions() {
-        if permissionsWindow == nil {
-            let window = NSWindow(contentViewController: NSHostingController(rootView: PermissionsView()))
-            window.title = "Split Permissions"
-            window.styleMask = [.titled, .closable]
+    private func showSettings(_ tab: SettingsTab) {
+        navigation.tab = tab
+        if settingsWindow == nil {
+            let view = SettingsView(navigation: navigation, library: library, settings: settings)
+            let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+            window.title = "Split Settings"
+            window.styleMask = [.titled, .closable, .miniaturizable]
             window.isReleasedWhenClosed = false
-            permissionsWindow = window
+            window.center()
+            settingsWindow = window
         }
-        permissionsWindow?.center()
         NSApp.activate()
-        permissionsWindow?.makeKeyAndOrderFront(nil)
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        // A menu bar app is not always allowed to activate; make sure the window is not left behind others.
+        settingsWindow?.orderFrontRegardless()
     }
 }

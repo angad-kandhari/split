@@ -42,7 +42,7 @@ struct PickerView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 Menu {
-                    Button("Permissions…") { model.onShowPermissions() }
+                    Button("Settings…") { model.onShowSettings() }
                     Divider()
                     Button("Quit Split") { NSApp.terminate(nil) }
                 } label: {

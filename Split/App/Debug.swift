@@ -22,21 +22,22 @@ enum DebugLog {
 #if DEBUG
 /// Lets test scripts drive the app without synthesising key presses:
 /// post a distributed notification whose object is "status", "move:<direction>[:<pid>]",
-/// "snap:<layout id>:<zone>[:<pid>]", "picker:open[:<pid>]", "picker:close", "picker:digit:<n>", "assist:select:<window id>", "assist:dismiss", "groups" or "restore:<index>". With a pid the command acts on that app's focused window, so tests
+/// "snap:<layout id>:<zone>[:<pid>]", "picker:open[:<pid>]", "picker:close", "picker:digit:<n>", "assist:select:<window id>", "assist:dismiss", "groups", "restore:<index>" or "settings:<tab>". With a pid the command acts on that app's focused window, so tests
 /// do not touch whatever the person at the keyboard is using.
 @MainActor
 enum DebugCommands {
     static let notification = Notification.Name("com.angadkandhari.Split.debug.command")
 
-    static func listen(engine: SnapEngine, picker: PickerController, assist: SnapAssistController) {
+    static func listen(engine: SnapEngine, picker: PickerController, assist: SnapAssistController,
+                       showSettings: @escaping @MainActor (SettingsTab) -> Void) {
         DistributedNotificationCenter.default().addObserver(forName: notification, object: nil, queue: .main) { note in
             guard let command = note.object as? String else { return }
-            MainActor.assumeIsolated { run(command, engine: engine, picker: picker, assist: assist) }
+            MainActor.assumeIsolated { run(command, engine: engine, picker: picker, assist: assist, showSettings: showSettings) }
         }
     }
 
     private static func run(_ command: String, engine: SnapEngine, picker: PickerController,
-                            assist: SnapAssistController) {
+                            assist: SnapAssistController, showSettings: (SettingsTab) -> Void) {
         let parts = command.split(separator: ":").map(String.init)
         switch parts.first {
         case "status":
@@ -55,6 +56,8 @@ enum DebugCommands {
             case "digit": if parts.count > 2, let digit = Int(parts[2]) { _ = picker.model.handleDigit(digit) }
             default: break
             }
+        case "settings":
+            if parts.count > 1, let tab = SettingsTab(rawValue: parts[1]) { showSettings(tab) }
         case "groups":
             AX.queue.async { DebugLog.write("groups \(engine.debugDescription())") }
         case "restore":

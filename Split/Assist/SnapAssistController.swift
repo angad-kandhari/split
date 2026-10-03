@@ -36,7 +36,9 @@ final class SnapAssistController {
             let zoneFrames = ZoneGeometry.frames(for: result.layout.tree, in: result.display.visibleFrame)
             let remaining = zoneFrames.indices.filter { occupied[$0] == nil }
             let taken = Set(occupied.values)
-            let candidates = WindowCatalog.onScreenWindows().filter { !taken.contains($0.id) }
+            let candidates = WindowCatalog.onScreenWindows().filter {
+                !taken.contains($0.id) && !engine.isIgnored(pid: $0.window.pid)
+            }
             guard !remaining.isEmpty, !candidates.isEmpty else { return }
             let session = Session(layout: result.layout, display: result.display, zoneFrames: zoneFrames,
                                   remaining: remaining, candidates: candidates)

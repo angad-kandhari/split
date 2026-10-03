@@ -11,7 +11,7 @@ final class PickerModel: ObservableObject {
     var onPick: (Layout, Int) -> Void = { _, _ in }
     var onDismiss: () -> Void = {}
     var onRestoreGroup: (UUID) -> Void = { _ in }
-    var onShowPermissions: () -> Void = {}
+    var onShowSettings: () -> Void = {}
 
     func reset() {
         armedLayout = nil

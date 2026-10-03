@@ -53,6 +53,7 @@ final class SnapEngine: @unchecked Sendable {
     private var pendingSizeRestore: (window: AXWindow, size: CGSize)?
     /// Raising a group activates its apps in turn, which would otherwise look like the user focusing them.
     private var ignoreFocusUntil: CFAbsoluteTime = 0
+    private var ignoredBundleIDs: Set<String> = []
     private let stateFile: JSONFile<SavedState> = {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let folder = support.appendingPathComponent(Bundle.main.bundleIdentifier ?? "Split")
@@ -75,6 +76,18 @@ final class SnapEngine: @unchecked Sendable {
             let pid = app.processIdentifier
             AX.queue.async { self?.appTerminated(pid) }
         }
+    }
+
+    @MainActor
+    func setIgnoredBundleIDs(_ ids: Set<String>) {
+        AX.queue.async { self.ignoredBundleIDs = ids }
+    }
+
+    /// Call on AX.queue.
+    func isIgnored(pid: pid_t) -> Bool {
+        guard !ignoredBundleIDs.isEmpty,
+              let bundleID = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier else { return false }
+        return ignoredBundleIDs.contains(bundleID)
     }
 
     // MARK: Commands
@@ -170,7 +183,7 @@ final class SnapEngine: @unchecked Sendable {
     }
 
     private func snappableWindow(pid: pid_t) -> AXWindow? {
-        guard let window = AXWindow.focused(inAppWithPID: pid), window.isStandard, !window.isFullScreen else { return nil }
+        guard !isIgnored(pid: pid), let window = AXWindow.focused(inAppWithPID: pid), window.isStandard, !window.isFullScreen else { return nil }
         return window
     }
 

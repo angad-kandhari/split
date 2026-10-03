@@ -8,6 +8,7 @@ final class PickerController {
 
     private let engine: SnapEngine
     private let assist: SnapAssistController
+    private let library: LayoutLibrary
     private let statusItem: NSStatusItem
     private var panel: FloatingPanel?
     private var keyMonitor: Any?
@@ -17,9 +18,10 @@ final class PickerController {
 
     var isOpen: Bool { panel?.isVisible ?? false }
 
-    init(engine: SnapEngine, assist: SnapAssistController, statusItem: NSStatusItem) {
+    init(engine: SnapEngine, assist: SnapAssistController, library: LayoutLibrary, statusItem: NSStatusItem) {
         self.engine = engine
         self.assist = assist
+        self.library = library
         self.statusItem = statusItem
         model.onPick = { [weak self] layout, zone in self?.pick(layout, zone: zone) }
         model.onDismiss = { [weak self] in self?.close() }
@@ -47,6 +49,7 @@ final class PickerController {
         let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
         targetPID = override ?? (frontmost == ProcessInfo.processInfo.processIdentifier ? nil : frontmost)
         model.reset()
+        model.layouts = library.all
 
         let panel = self.panel ?? FloatingPanel(contentView: NSHostingView(rootView: PickerView(model: model)))
         self.panel = panel
