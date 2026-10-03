@@ -46,6 +46,10 @@ final class SnapEngine: @unchecked Sendable {
     private let hub = AXObserverHub()
     /// The member the user is dragging or resizing with the mouse, from first movement until mouse-up.
     private var driver: CGWindowID?
+    /// True once the current mouse gesture has moved a divider, so the group is tidied up on mouse-up.
+    private var dividerMoved = false
+    /// Smallest width or height a linked resize may leave a neighbouring zone, in points.
+    private static let minimumZoneLength: CGFloat = 200
     private var pendingSizeRestore: (window: AXWindow, size: CGSize)?
     /// Raising a group activates its apps in turn, which would otherwise look like the user focusing them.
     private var ignoreFocusUntil: CFAbsoluteTime = 0
@@ -303,6 +307,7 @@ final class SnapEngine: @unchecked Sendable {
 
         let resized = abs(frame.width - member.frame.width) > 1 || abs(frame.height - member.frame.height) > 1
         if resized {
+            linkedResize(group: index, zone: zone, from: member.frame, to: frame)
             groups[index].members[zone]?.frame = frame
         } else if hypot(frame.minX - member.frame.minX, frame.minY - member.frame.minY) > 8 {
             // Dragged out of its zone: it leaves the group and gets its old size back.
@@ -321,8 +326,89 @@ final class SnapEngine: @unchecked Sendable {
         }
         guard let id = driver else { return }
         driver = nil
-        if let (index, zone) = locate(id), let frame = groups[index].members[zone]?.window.frame {
+        guard let (index, zone) = locate(id) else { return }
+        if dividerMoved {
+            // The live updates can lag or be clamped; put every member exactly on its zone.
+            dividerMoved = false
+            settle(group: index)
+        } else if let frame = groups[index].members[zone]?.window.frame {
             groups[index].members[zone]?.frame = frame
+        }
+    }
+
+    // MARK: Linked resize
+
+    /// The user resized one member with the mouse: move the divider on each edge that changed
+    /// and resize the neighbours to match. The dragged window itself is left to the mouse.
+    private func linkedResize(group index: Int, zone: Int, from old: CGRect, to new: CGRect) {
+        let visible = groups[index].visibleFrame
+        let before = groups[index].zoneFrames
+        var tree = groups[index].layout.tree
+        let edges: [(side: Direction, old: CGFloat, new: CGFloat)] = [
+            (.left, old.minX, new.minX), (.right, old.maxX, new.maxX),
+            (.up, old.minY, new.minY), (.down, old.maxY, new.maxY),
+        ]
+        var movedDividers: [(side: Direction, divider: Divider)] = []
+        for edge in edges where abs(edge.old - edge.new) > 1 {
+            guard let divider = tree.divider(ofZone: zone, on: edge.side) else { continue }
+            let horizontal = edge.side == .left || edge.side == .right
+            let origin = horizontal ? visible.minX : visible.minY
+            let length = horizontal ? visible.width : visible.height
+            if tree.moveDivider(divider, to: Double((edge.new - origin) / length),
+                                minimumSize: Double(Self.minimumZoneLength / length)) {
+                movedDividers.append((edge.side, divider))
+            }
+        }
+        guard !movedDividers.isEmpty else { return }
+        dividerMoved = true
+        groups[index].layout.tree = tree
+        let after = groups[index].zoneFrames
+        applyZoneFrames(group: index, except: zone, changedFrom: before)
+
+        // A neighbour that refused to shrink as far as asked has a minimum size:
+        // back the divider off by the amount it sticks out, once.
+        var corrected = false
+        for (side, divider) in movedDividers {
+            let horizontal = side == .left || side == .right
+            let length = horizontal ? visible.width : visible.height
+            var overflow: CGFloat = 0
+            for (otherZone, member) in groups[index].members where otherZone != zone && after.indices.contains(otherZone) {
+                let shrank = horizontal ? after[otherZone].width < before[otherZone].width - 0.5
+                                        : after[otherZone].height < before[otherZone].height - 0.5
+                guard shrank else { continue }
+                overflow = max(overflow, horizontal ? member.frame.width - after[otherZone].width
+                                                    : member.frame.height - after[otherZone].height)
+            }
+            guard overflow > 1,
+                  let current = tree.dividers().first(where: { $0.path == divider.path && $0.index == divider.index })
+            else { continue }
+            let towardStart = side == .right || side == .down
+            let position = current.position + Double(overflow / length) * (towardStart ? -1 : 1)
+            if tree.moveDivider(current, to: position, minimumSize: Double(Self.minimumZoneLength / length)) {
+                corrected = true
+            }
+        }
+        if corrected {
+            groups[index].layout.tree = tree
+            applyZoneFrames(group: index, except: zone, changedFrom: after)
+        }
+    }
+
+    /// Moves every member except `zone` whose zone frame differs from `previous`.
+    private func applyZoneFrames(group index: Int, except zone: Int, changedFrom previous: [CGRect]) {
+        let frames = groups[index].zoneFrames
+        for (otherZone, member) in groups[index].members
+        where otherZone != zone && frames.indices.contains(otherZone) && frames[otherZone] != previous[otherZone] {
+            let actual = member.window.setFrame(frames[otherZone]) ?? frames[otherZone]
+            groups[index].members[otherZone]?.frame = actual
+        }
+    }
+
+    private func settle(group index: Int) {
+        let frames = groups[index].zoneFrames
+        for (zone, member) in groups[index].members where frames.indices.contains(zone) {
+            let actual = member.window.setFrame(frames[zone]) ?? frames[zone]
+            groups[index].members[zone]?.frame = actual
         }
     }
 

@@ -129,6 +129,25 @@ private func isClose(_ a: Double, _ b: Double, tolerance: Double = 1e-9) -> Bool
         #expect(isClose(tree.fractions[1], 2.0 / 3))
     }
 
+    @Test func dividerBorderingAZone() {
+        let tree = Layout.halfAndStack.tree
+        #expect(tree.divider(ofZone: 0, on: .right)?.path == [])
+        #expect(tree.divider(ofZone: 0, on: .left) == nil)
+        #expect(tree.divider(ofZone: 1, on: .left)?.path == [])
+        #expect(tree.divider(ofZone: 1, on: .down)?.path == [1])
+        #expect(tree.divider(ofZone: 2, on: .up)?.path == [1])
+        #expect(tree.divider(ofZone: 2, on: .down) == nil)
+        #expect(tree.divider(ofZone: 1, on: .right) == nil)
+    }
+
+    @Test func quartersHaveSeparateDividersPerRow() {
+        let tree = Layout.quarters.tree
+        #expect(tree.divider(ofZone: 0, on: .right)?.path == [0])
+        #expect(tree.divider(ofZone: 2, on: .right)?.path == [1])
+        #expect(tree.divider(ofZone: 0, on: .down)?.path == [])
+        #expect(tree.divider(ofZone: 3, on: .up)?.path == [])
+    }
+
     @Test func codableRoundTrip() throws {
         let data = try JSONEncoder().encode(Layout.quarters)
         let decoded = try JSONDecoder().decode(Layout.self, from: data)

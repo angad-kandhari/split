@@ -233,3 +233,28 @@ public struct SplitTree: Codable, Hashable, Sendable {
         return true
     }
 }
+
+extension SplitTree {
+    /// The divider that borders a zone on one side. Nil where the zone meets the edge of the layout.
+    public func divider(ofZone index: Int, on side: Direction) -> Divider? {
+        let all = zones()
+        guard all.indices.contains(index) else { return nil }
+        let rect = all[index].rect
+        let tolerance = 1e-9
+        let axis: Axis
+        let position: Double
+        let extent: ClosedRange<Double>
+        switch side {
+        case .left: axis = .horizontal; position = Double(rect.minX); extent = Double(rect.minY)...Double(rect.maxY)
+        case .right: axis = .horizontal; position = Double(rect.maxX); extent = Double(rect.minY)...Double(rect.maxY)
+        case .up: axis = .vertical; position = Double(rect.minY); extent = Double(rect.minX)...Double(rect.maxX)
+        case .down: axis = .vertical; position = Double(rect.maxY); extent = Double(rect.minX)...Double(rect.maxX)
+        }
+        return dividers().first { divider in
+            divider.axis == axis
+                && abs(divider.position - position) <= tolerance
+                && divider.span.lowerBound <= extent.lowerBound + tolerance
+                && divider.span.upperBound >= extent.upperBound - tolerance
+        }
+    }
+}
