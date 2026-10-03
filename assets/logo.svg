@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 120 120" role="img" aria-label="Split">
+  <rect x="4" y="4" width="112" height="112" rx="27" fill="#FFFFFF" stroke="#D5D3EE" stroke-width="1.5"/>
+  <rect x="22" y="22" width="36" height="76" rx="11" fill="#5B5BD6"/>
+  <rect x="64" y="22" width="34" height="35" rx="11" fill="#1F9E8F"/>
+  <rect x="64" y="63" width="34" height="35" rx="11" fill="#C3C2F0"/>
+</svg>
