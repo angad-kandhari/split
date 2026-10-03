@@ -1,0 +1,59 @@
+name: Split
+
+options:
+  bundleIdPrefix: com.angadkandhari
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+
+packages:
+  SplitCore:
+    path: Packages/SplitCore
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.6.0
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: 2.0.0
+
+settings:
+  base:
+    # Swift 5 mode: the Accessibility C callbacks do not fit strict concurrency checking.
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: 0.1.0
+    CURRENT_PROJECT_VERSION: 1
+    DEVELOPMENT_TEAM: W64YC3NG4K
+    CODE_SIGN_STYLE: Manual
+    ENABLE_HARDENED_RUNTIME: YES
+
+targets:
+  Split:
+    type: application
+    platform: macOS
+    sources:
+      - Split
+    dependencies:
+      - package: SplitCore
+      - package: Sparkle
+      - package: KeyboardShortcuts
+    scheme: {}
+    info:
+      path: Split/App/Info.plist
+      properties:
+        CFBundleDisplayName: Split
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHumanReadableCopyright: Copyright © 2026 Angad Kandhari
+    settings:
+      base:
+        PRODUCT_NAME: Split
+      configs:
+        # A separate debug identity keeps development builds' permissions apart from the released app's.
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.angadkandhari.Split.debug
+          CODE_SIGN_IDENTITY: Apple Development
+        Release:
+          PRODUCT_BUNDLE_IDENTIFIER: com.angadkandhari.Split
+          CODE_SIGN_IDENTITY: Developer ID Application
