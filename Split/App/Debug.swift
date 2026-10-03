@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import SplitCore
 
@@ -21,20 +22,21 @@ enum DebugLog {
 #if DEBUG
 /// Lets test scripts drive the app without synthesising key presses:
 /// post a distributed notification whose object is "status", "move:<direction>[:<pid>]",
-/// "snap:<layout id>:<zone>[:<pid>]", "picker:open[:<pid>]", "picker:close" or "picker:digit:<n>". With a pid the command acts on that app's focused window, so tests
+/// "snap:<layout id>:<zone>[:<pid>]", "picker:open[:<pid>]", "picker:close", "picker:digit:<n>", "assist:select:<window id>" or "assist:dismiss". With a pid the command acts on that app's focused window, so tests
 /// do not touch whatever the person at the keyboard is using.
 @MainActor
 enum DebugCommands {
     static let notification = Notification.Name("com.angadkandhari.Split.debug.command")
 
-    static func listen(engine: SnapEngine, picker: PickerController) {
+    static func listen(engine: SnapEngine, picker: PickerController, assist: SnapAssistController) {
         DistributedNotificationCenter.default().addObserver(forName: notification, object: nil, queue: .main) { note in
             guard let command = note.object as? String else { return }
-            MainActor.assumeIsolated { run(command, engine: engine, picker: picker) }
+            MainActor.assumeIsolated { run(command, engine: engine, picker: picker, assist: assist) }
         }
     }
 
-    private static func run(_ command: String, engine: SnapEngine, picker: PickerController) {
+    private static func run(_ command: String, engine: SnapEngine, picker: PickerController,
+                            assist: SnapAssistController) {
         let parts = command.split(separator: ":").map(String.init)
         switch parts.first {
         case "status":
@@ -51,6 +53,12 @@ enum DebugCommands {
             case "open": picker.open(targetPID: parts.count > 2 ? pid_t(parts[2]) : nil)
             case "close": picker.close()
             case "digit": if parts.count > 2, let digit = Int(parts[2]) { _ = picker.model.handleDigit(digit) }
+            default: break
+            }
+        case "assist":
+            switch parts.dropFirst().first {
+            case "select": if parts.count > 2, let id = CGWindowID(parts[2]) { assist.select(id) }
+            case "dismiss": assist.dismiss()
             default: break
             }
         default:

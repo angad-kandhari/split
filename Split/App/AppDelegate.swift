@@ -7,6 +7,7 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var picker: PickerController!
+    private var assist: SnapAssistController!
     private var permissionsWindow: NSWindow?
     private let engine = SnapEngine()
 
@@ -24,7 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.target = self
         statusItem.button?.action = #selector(statusItemClicked)
 
-        picker = PickerController(engine: engine, statusItem: statusItem)
+        assist = SnapAssistController(engine: engine)
+        picker = PickerController(engine: engine, assist: assist, statusItem: statusItem)
         picker.model.onShowPermissions = { [weak self] in
             self?.picker.close()
             self?.showPermissions()
@@ -35,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.picker.toggle()
         }
         #if DEBUG
-        DebugCommands.listen(engine: engine, picker: picker)
+        DebugCommands.listen(engine: engine, picker: picker, assist: assist)
         #endif
 
         if !Permissions.accessibility {

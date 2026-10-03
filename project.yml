@@ -49,6 +49,8 @@ targets:
     settings:
       base:
         PRODUCT_NAME: Split
+        # Private window-server framework, needed to bring another app's window to the front.
+        OTHER_LDFLAGS: ["-F/System/Library/PrivateFrameworks", "-framework", "SkyLight"]
       configs:
         # A separate debug identity keeps development builds' permissions apart from the released app's.
         Debug:

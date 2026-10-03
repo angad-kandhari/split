@@ -2,32 +2,14 @@ import AppKit
 import SplitCore
 import SwiftUI
 
-/// A borderless panel that can take keyboard input without making Split the active app,
-/// so the window being snapped stays focused in its own app.
-private final class PickerPanel: NSPanel {
-    init(contentView: NSView) {
-        super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        self.contentView = contentView
-        isFloatingPanel = true
-        level = .popUpMenu
-        isOpaque = false
-        backgroundColor = .clear
-        hasShadow = false
-        hidesOnDeactivate = false
-        isMovable = false
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
-    }
-
-    override var canBecomeKey: Bool { true }
-}
-
 @MainActor
 final class PickerController {
     let model = PickerModel()
 
     private let engine: SnapEngine
+    private let assist: SnapAssistController
     private let statusItem: NSStatusItem
-    private var panel: PickerPanel?
+    private var panel: FloatingPanel?
     private var keyMonitor: Any?
     private var outsideClickMonitor: Any?
     /// The app whose focused window the next pick applies to, captured when the picker opens.
@@ -35,8 +17,9 @@ final class PickerController {
 
     var isOpen: Bool { panel?.isVisible ?? false }
 
-    init(engine: SnapEngine, statusItem: NSStatusItem) {
+    init(engine: SnapEngine, assist: SnapAssistController, statusItem: NSStatusItem) {
         self.engine = engine
+        self.assist = assist
         self.statusItem = statusItem
         model.onPick = { [weak self] layout, zone in self?.pick(layout, zone: zone) }
         model.onDismiss = { [weak self] in self?.close() }
@@ -52,11 +35,12 @@ final class PickerController {
 
     func open(targetPID override: pid_t? = nil) {
         guard !isOpen else { return }
+        assist.dismiss()
         let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
         targetPID = override ?? (frontmost == ProcessInfo.processInfo.processIdentifier ? nil : frontmost)
         model.reset()
 
-        let panel = self.panel ?? PickerPanel(contentView: NSHostingView(rootView: PickerView(model: model)))
+        let panel = self.panel ?? FloatingPanel(contentView: NSHostingView(rootView: PickerView(model: model)))
         self.panel = panel
         let size = panel.contentView?.fittingSize ?? NSSize(width: 420, height: 240)
         panel.setFrame(NSRect(origin: origin(for: size), size: size), display: true)
@@ -81,7 +65,9 @@ final class PickerController {
 
     private func pick(_ layout: Layout, zone: Int) {
         close()
-        engine.snapFocusedWindow(to: layout, zone: zone, inAppWithPID: targetPID)
+        engine.snapFocusedWindow(to: layout, zone: zone, inAppWithPID: targetPID) { [assist] result in
+            assist.begin(after: result)
+        }
     }
 
     /// Hangs the panel below the menu bar icon, kept within the screen.

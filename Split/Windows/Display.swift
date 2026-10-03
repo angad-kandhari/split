@@ -49,3 +49,12 @@ extension Array where Element == Display {
         rect.isNull ? 0 : rect.width * rect.height
     }
 }
+
+extension Display {
+    /// Converts a rect from the Accessibility coordinate space to AppKit screen coordinates.
+    @MainActor
+    static func appKitRect(fromAX rect: CGRect) -> CGRect {
+        let height = NSScreen.screens.first?.frame.height ?? 0
+        return CGRect(x: rect.minX, y: height - rect.maxY, width: rect.width, height: rect.height)
+    }
+}

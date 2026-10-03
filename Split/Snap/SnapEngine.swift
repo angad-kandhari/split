@@ -1,9 +1,16 @@
 import AppKit
 import SplitCore
 
+struct SnapResult {
+    let layout: Layout
+    let display: Display
+    let zone: Int
+}
+
 /// Moves windows into layout zones.
 final class SnapEngine: @unchecked Sendable {
     struct Placement {
+        let window: AXWindow
         let displayUUID: String
         let layout: Layout
         let zone: Int
@@ -18,13 +25,16 @@ final class SnapEngine: @unchecked Sendable {
 
     /// Snaps the window the user is working in to a zone of `layout` on that window's display.
     @MainActor
-    func snapFocusedWindow(to layout: Layout, zone: Int, inAppWithPID pid: pid_t? = nil) {
+    func snapFocusedWindow(to layout: Layout, zone: Int, inAppWithPID pid: pid_t? = nil,
+                           completion: (@MainActor (SnapResult) -> Void)? = nil) {
         guard let pid = pid ?? frontmostPID() else { return }
         let displays = Display.all()
         AX.queue.async {
             guard let window = self.snappableWindow(pid: pid), let frame = window.frame,
-                  let display = displays.containing(frame) else { return }
-            self.place(window, from: frame, in: layout, zone: zone, on: display)
+                  let display = displays.containing(frame),
+                  self.place(window, from: frame, in: layout, zone: zone, on: display) else { return }
+            let result = SnapResult(layout: layout, display: display, zone: zone)
+            DispatchQueue.main.async { completion?(result) }
         }
     }
 
@@ -58,6 +68,25 @@ final class SnapEngine: @unchecked Sendable {
         }
     }
 
+    /// Snaps a specific window. Call on AX.queue.
+    @discardableResult
+    func snap(_ window: AXWindow, to layout: Layout, zone: Int, on display: Display) -> Bool {
+        guard let frame = window.frame else { return false }
+        return place(window, from: frame, in: layout, zone: zone, on: display)
+    }
+
+    /// Zones of `layout` on `display` that still hold the window Split put there. Call on AX.queue.
+    func occupiedZones(of layout: Layout, on display: Display) -> [Int: CGWindowID] {
+        var occupied: [Int: CGWindowID] = [:]
+        for (id, placement) in placements
+        where placement.displayUUID == display.uuid && placement.layout.id == layout.id {
+            guard let frame = placement.window.frame,
+                  ZoneGeometry.zoneIndex(matching: frame, in: [placement.frame]) != nil else { continue }
+            occupied[placement.zone] = id
+        }
+        return occupied
+    }
+
     @MainActor
     private func frontmostPID() -> pid_t? {
         guard let app = NSWorkspace.shared.frontmostApplication,
@@ -81,15 +110,22 @@ final class SnapEngine: @unchecked Sendable {
         return ZoneGeometry.zoneIndex(matching: frame, in: zones)
     }
 
-    private func place(_ window: AXWindow, from oldFrame: CGRect, in layout: Layout, zone: Int, on display: Display) {
+    @discardableResult
+    private func place(_ window: AXWindow, from oldFrame: CGRect, in layout: Layout, zone: Int, on display: Display) -> Bool {
         let zones = ZoneGeometry.frames(for: layout.tree, in: display.visibleFrame)
-        guard zones.indices.contains(zone) else { return }
+        guard zones.indices.contains(zone) else { return false }
         let actual = window.setFrame(zones[zone]) ?? zones[zone]
         lastLayouts[display.uuid] = layout
         if let id = window.windowID {
             if placements[id] == nil { preSnapFrames[id] = oldFrame }
-            placements[id] = Placement(displayUUID: display.uuid, layout: layout, zone: zone, frame: actual)
+            // One window per zone: whatever was recorded there before has been covered.
+            for (other, placement) in placements
+            where other != id && placement.displayUUID == display.uuid && placement.layout.id == layout.id && placement.zone == zone {
+                placements[other] = nil
+            }
+            placements[id] = Placement(window: window, displayUUID: display.uuid, layout: layout, zone: zone, frame: actual)
         }
         DebugLog.write("placed layout=\(layout.id) zone=\(zone) target=\(zones[zone]) actual=\(actual)")
+        return true
     }
 }
