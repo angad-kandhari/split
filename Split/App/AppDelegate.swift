@@ -1,10 +1,12 @@
 import AppKit
+import KeyboardShortcuts
 import SwiftUI
 
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
+    private var picker: PickerController!
     private var permissionsWindow: NSWindow?
     private let engine = SnapEngine()
 
@@ -18,13 +20,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1",
-                                           accessibilityDescription: "Split")
-        statusItem.menu = makeMenu()
+        statusItem.button?.image = Theme.menuBarIcon
+        statusItem.button?.target = self
+        statusItem.button?.action = #selector(statusItemClicked)
+
+        picker = PickerController(engine: engine, statusItem: statusItem)
+        picker.model.onShowPermissions = { [weak self] in
+            self?.picker.close()
+            self?.showPermissions()
+        }
 
         Hotkeys.register(engine: engine)
+        KeyboardShortcuts.onKeyDown(for: .openPicker) { [weak self] in
+            self?.picker.toggle()
+        }
         #if DEBUG
-        DebugCommands.listen(engine: engine)
+        DebugCommands.listen(engine: engine, picker: picker)
         #endif
 
         if !Permissions.accessibility {
@@ -32,18 +43,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func makeMenu() -> NSMenu {
-        let menu = NSMenu()
-        let permissions = menu.addItem(withTitle: "Permissions…", action: #selector(showPermissions),
-                                       keyEquivalent: "")
-        permissions.target = self
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Split", action: #selector(NSApplication.terminate(_:)),
-                     keyEquivalent: "q")
-        return menu
+    @objc private func statusItemClicked() {
+        picker.toggle()
     }
 
-    @objc private func showPermissions() {
+    private func showPermissions() {
         if permissionsWindow == nil {
             let window = NSWindow(contentViewController: NSHostingController(rootView: PermissionsView()))
             window.title = "Split Permissions"
