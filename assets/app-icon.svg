@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- macOS icon grid: an 824pt rounded square centred on a 1024pt canvas, with a soft shadow. -->
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#1E1B3A" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#FFFFFF" filter="url(#shadow)"/>
+  <rect x="100.75" y="100.75" width="822.5" height="822.5" rx="184.25" fill="none" stroke="#D5D3EE" stroke-width="1.5"/>
+  <rect x="232" y="232" width="265" height="560" rx="81" fill="#5B5BD6"/>
+  <rect x="541" y="232" width="251" height="258" rx="81" fill="#1F9E8F"/>
+  <rect x="541" y="534" width="251" height="258" rx="81" fill="#C3C2F0"/>
+</svg>
