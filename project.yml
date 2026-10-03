@@ -46,6 +46,9 @@ targets:
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: Copyright © 2026 Angad Kandhari
+        # Sparkle: the feed is published as an asset of the latest GitHub release.
+        SUFeedURL: https://github.com/angad-kandhari/split/releases/latest/download/appcast.xml
+        SUPublicEDKey: uMzVGCUnTZ9Mu4lRHmrNchXWaJNpIEKQvi62gL59N5Y=
     settings:
       base:
         PRODUCT_NAME: Split

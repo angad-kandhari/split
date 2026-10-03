@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let library = LayoutLibrary()
     private let settings = AppSettings()
     private let navigation = SettingsNavigation()
+    private let updater = Updater()
 
     static func main() {
         let app = NSApplication.shared
@@ -60,7 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showSettings(_ tab: SettingsTab) {
         navigation.tab = tab
         if settingsWindow == nil {
-            let view = SettingsView(navigation: navigation, library: library, settings: settings)
+            let view = SettingsView(navigation: navigation, library: library, settings: settings, updater: updater)
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
             window.title = "Split Settings"
             window.styleMask = [.titled, .closable, .miniaturizable]

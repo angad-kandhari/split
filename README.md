@@ -8,7 +8,7 @@
 
 ---
 
-> **Status: early development.** There is no release to download yet. This README describes what Split is being built to do; the roadmap below shows what works today.
+> **Status: pre-release.** The features below work when built from source. There is no notarised download yet.
 
 ## What it is
 
@@ -55,6 +55,14 @@ The core layout logic is a standalone Swift package and can be tested on its own
 cd Packages/SplitCore
 swift test
 ```
+
+## Releasing
+
+`scripts/release.sh <version>` archives the app, signs it with Developer ID, notarises and staples it, builds a DMG and writes the Sparkle update feed. It needs a `notarytool` keychain profile named `split-notary` and the Sparkle signing key in the login keychain. `SKIP_NOTARIZE=1` stops after signing for a local dry run.
+
+## Private API
+
+Split uses two undocumented macOS calls, as other Mac window managers do: one maps an Accessibility window to its window ID, and one brings another app's window to the front, which is what lets a Snap Group come forward together. They may change in a future macOS release.
 
 ## Why not the Mac App Store?
 

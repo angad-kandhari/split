@@ -16,10 +16,11 @@ struct SettingsView: View {
     @ObservedObject var navigation: SettingsNavigation
     let library: LayoutLibrary
     let settings: AppSettings
+    let updater: Updater
 
     var body: some View {
         TabView(selection: $navigation.tab) {
-            GeneralPane()
+            GeneralPane(updater: updater)
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(SettingsTab.general)
             ShortcutsPane()
@@ -40,6 +41,7 @@ struct SettingsView: View {
 }
 
 private struct GeneralPane: View {
+    @ObservedObject var updater: Updater
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
 
@@ -55,7 +57,18 @@ private struct GeneralPane: View {
                     .font(.callout)
                     .foregroundStyle(.red)
             }
-            LabeledContent("Version", value: version)
+            if updater.isAvailable {
+                Toggle("Check for updates automatically",
+                       isOn: Binding(get: { updater.automaticallyChecks }, set: { updater.automaticallyChecks = $0 }))
+            }
+            LabeledContent("Version") {
+                HStack(spacing: 12) {
+                    Text(version)
+                    if updater.isAvailable {
+                        Button("Check for Updates…") { updater.checkForUpdates() }
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
     }

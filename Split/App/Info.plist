@@ -26,5 +26,9 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Angad Kandhari</string>
+	<key>SUFeedURL</key>
+	<string>https://github.com/angad-kandhari/split/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>uMzVGCUnTZ9Mu4lRHmrNchXWaJNpIEKQvi62gL59N5Y=</string>
 </dict>
 </plist>
